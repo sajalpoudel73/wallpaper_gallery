@@ -32,8 +32,8 @@ jobs:
           # 3. Clean title for safe filename
           SAFE_TITLE=$(echo "$TITLE" | sed 's/[[:space:]]/_/g' | sed 's/[\/:*?"<>|]/_/g' | tr -cd '[:alnum:]_.-')
 
-          # 4. Build filename: YYYY-MM-DD_Title.jpg
-          FILENAME="${DATE}_${SAFE_TITLE}.jpg"
+          # 4. Build filename: Title.jpg
+          FILENAME="${SAFE_TITLE}.jpg"
           FULL_URL="https://www.bing.com$IMG_URL_RELATIVE"
 
           # 5. Download image
