@@ -2,49 +2,55 @@ name: Sync Bing Wallpapers
 
 on:
   schedule:
-    - cron: '0 0 * * *' # Once a day (UTC)
+    - cron: '0 0 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
 jobs:
-  update:
+  update-and-deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Fetch Wallpaper and Update DB
+        id: wallpaper
         run: |
           mkdir -p wallpapers
           
-          # 1. Get Data from Bing
           API_URL="https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=en-US"
           RESPONSE=$(curl -s "$API_URL")
           
-          # 2. Extract fields
           IMG_URL_RELATIVE=$(echo $RESPONSE | jq -r '.images[0].url')
           TITLE=$(echo $RESPONSE | jq -r '.images[0].title')
           COPYRIGHT=$(echo $RESPONSE | jq -r '.images[0].copyright')
           DATE=$(date +'%Y-%m-%d')
 
-          # 3. Clean title for safe filename
-          SAFE_TITLE=$(echo "$TITLE" | sed 's/[[:space:]]/_/g' | sed 's/[\/:*?"<>|]/_/g' | tr -cd '[:alnum:]_.-')
-
-          # 4. Build filename: Title.jpg
-          FILENAME="${SAFE_TITLE}.jpg"
+          SAFE_TITLE=$(echo "$TITLE" | sed 's/[\/:*?"<>|]/-/g' | tr -cd '[:alnum:] ._-')
+          FILENAME="$DATE - $SAFE_TITLE.jpg"
           FULL_URL="https://www.bing.com$IMG_URL_RELATIVE"
 
-          # 5. Download image
+          # 🔎 If file already exists → exit early
+          if [ -f "wallpapers/$FILENAME" ]; then
+            echo "Wallpaper already exists. Skipping..."
+            echo "changed=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Download image
           curl -L -o "wallpapers/$FILENAME" "$FULL_URL"
 
-          # 6. Create database file if missing
+          # Ensure database exists
           if [ ! -f "wallpapers/database.json" ]; then
             echo "[]" > wallpapers/database.json
           fi
-          
-          # 7. Update database (prepend new entry if date not exists)
+
+          # Prevent duplicate date in DB
           jq --arg date "$DATE" \
              --arg title "$TITLE" \
              --arg copyright "$COPYRIGHT" \
@@ -55,15 +61,27 @@ jobs:
               end' \
              wallpapers/database.json > wallpapers/tmp.json && mv wallpapers/tmp.json wallpapers/database.json
 
+          echo "changed=true" >> $GITHUB_OUTPUT
+
       - name: Commit Changes
+        if: steps.wallpaper.outputs.changed == 'true'
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add wallpapers/
-          
-          if git diff --quiet && git diff --staged --quiet; then
-            echo "No changes"
-          else
-            git commit -m "Wallpaper Sync: $(date +'%Y-%m-%d')"
-            git push
-          fi
+          git commit -m "Wallpaper Sync: $(date +'%Y-%m-%d')"
+          git push
+
+      - name: Setup Pages
+        if: steps.wallpaper.outputs.changed == 'true'
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        if: steps.wallpaper.outputs.changed == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./
+
+      - name: Deploy to GitHub Pages
+        if: steps.wallpaper.outputs.changed == 'true'
+        uses: actions/deploy-pages@v4
