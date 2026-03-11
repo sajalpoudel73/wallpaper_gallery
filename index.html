@@ -1,161 +1,174 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wallpaper Gallery</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Wallpaper Gallery</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+
+body{
+background:#020617;
+color:#e5e7eb;
+}
+
+.image-skeleton{
+background: linear-gradient(
+90deg,
+#1f2937 25%,
+#374151 37%,
+#1f2937 63%
+);
+background-size:400% 100%;
+animation:skeleton 1.4s ease infinite;
+}
+
+@keyframes skeleton{
+0%{background-position:100% 0}
+100%{background-position:-100% 0}
+}
+
+#ambient-bg{
+backdrop-filter: blur(12px);
+-webkit-backdrop-filter: blur(12px);
+}
+
+</style>
+
 </head>
-<body class="bg-gray-900 text-white">
-    <div class="min-h-screen py-12 px-4 sm:px-6 lg:px-8">
-        <div class="max-w-7xl mx-auto">
-            <!-- Header -->
-            <div class="mb-12">
-                <h1 class="text-4xl sm:text-5xl font-bold text-center mb-4">Wallpaper Gallery</h1>
-                <p class="text-center text-gray-400 text-lg">Browse our collection of beautiful wallpapers</p>
-            </div>
 
-            <!-- Loading State -->
-            <div id="loading" class="text-center py-12">
-                <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-                <p class="text-gray-400 mt-4">Loading wallpapers...</p>
-            </div>
+<body>
 
-            <!-- Gallery Container -->
-            <div id="gallery-container" class="hidden"></div>
+<!-- NAVBAR -->
+<nav class="sticky top-0 z-40 bg-slate-950/95 backdrop-blur border-b border-slate-800">
+<div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+<h1 class="text-2xl font-bold text-white">Wallpaper Gallery</h1>
+<div class="flex gap-8">
+<button onclick="showGallery()" class="nav-link text-gray-300 hover:text-white transition font-medium">
+Wallpapers
+</button>
+<button onclick="showAbout()" class="nav-link text-gray-300 hover:text-white transition font-medium">
+About
+</button>
+</div>
+</div>
+</nav>
 
-            <!-- Error State -->
-            <div id="error" class="hidden text-center py-12">
-                <p class="text-red-500 text-lg">Failed to load wallpapers. Please try again later.</p>
-            </div>
-        </div>
-    </div>
+<div class="max-w-7xl mx-auto px-6 py-12">
 
-    <script>
-        async function loadAndDisplayWallpapers() {
-            try {
-                const response = await fetch('wallpapers/database.json');
-                if (!response.ok) throw new Error('Failed to fetch database');
-                
-                const wallpapers = await response.json();
-                
-                // Group wallpapers by date
-                const groupedByDate = {};
-                wallpapers.forEach(wallpaper => {
-                    const date = wallpaper.date || 'Undated';
-                    if (!groupedByDate[date]) {
-                        groupedByDate[date] = [];
-                    }
-                    groupedByDate[date].push(wallpaper);
-                });
+<!-- HEADER -->
+<div id="gallery-header" class="text-center mb-16">
+<h1 class="text-5xl font-bold tracking-tight mb-4">
+Wallpaper Gallery
+</h1>
 
-                // Sort dates in descending order
-                const sortedDates = Object.keys(groupedByDate).sort((a, b) => {
-                    if (a === 'Undated') return 1;
-                    if (b === 'Undated') return -1;
-                    return new Date(b) - new Date(a);
-                });
+<p class="text-gray-400">
+Browse and download wallpapers
+</p>
+</div>
 
-                // Generate HTML
-                const container = document.getElementById('gallery-container');
-                let html = '';
+<!-- LOADING -->
+<div id="loading" class="text-center py-20">
+<div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-blue-500 border-b-2"></div>
 
-                sortedDates.forEach(date => {
-                    const wallpapersForDate = groupedByDate[date];
-                    
-                    // Format date for display
-                    const displayDate = date === 'Undated' ? 'Undated' : new Date(date).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                    });
+<p class="mt-4 text-gray-400">
+Loading wallpapers...
+</p>
+</div>
 
-                    html += `
-                        <div class="mb-16">
-                            <div class="flex items-center mb-8">
-                                <h2 class="text-3xl font-bold">${displayDate}</h2>
-                                <span class="ml-4 px-4 py-2 bg-blue-600 rounded-full text-sm font-semibold">
-                                    ${wallpapersForDate.length} image${wallpapersForDate.length !== 1 ? 's' : ''}
-                                </span>
-                            </div>
-                            
-                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    `;
+<!-- GALLERY -->
+<div id="gallery-container" class="hidden space-y-16"></div>
 
-                    wallpapersForDate.forEach((wallpaper, index) => {
-                        html += `
-                            <div class="group cursor-pointer" onclick="openModal('${wallpaper.url.replace(/'/g, "\\'")}', '${wallpaper.title.replace(/'/g, "\\'")}')">
-                                <div class="relative overflow-hidden rounded-lg bg-gray-800 h-48 mb-3 shadow-lg hover:shadow-2xl transition-shadow duration-300">
-                                    <img 
-                                        src="${wallpaper.url}" 
-                                        alt="${wallpaper.title}"
-                                        class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                                        loading="lazy"
-                                        onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22%3E%3Crect fill=%22%23333%22 width=%22200%22 height=%22200%22/%3E%3C/svg%3E'"
-                                    />
-                                    <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center">
-                                        <span class="text-white text-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300">👁️</span>
-                                    </div>
-                                </div>
-                                <h3 class="text-sm font-medium text-gray-300 truncate group-hover:text-white transition-colors">
-                                    ${wallpaper.title}
-                                </h3>
-                            </div>
-                        `;
-                    });
+<!-- ERROR -->
+<div id="error" class="hidden text-center text-red-500">
+Failed to load wallpapers
+</div>
 
-                    html += `
-                            </div>
-                        </div>
-                    `;
-                });
+<!-- ABOUT PAGE -->
+<div id="about-page" class="hidden">
+<div class="max-w-3xl mx-auto">
 
-                container.innerHTML = html;
-                document.getElementById('loading').classList.add('hidden');
-                container.classList.remove('hidden');
+<h2 class="text-4xl font-bold text-white mb-8">About This Project</h2>
 
-            } catch (error) {
-                console.error('Error loading wallpapers:', error);
-                document.getElementById('loading').classList.add('hidden');
-                document.getElementById('error').classList.remove('hidden');
-            }
-        }
+<div class="space-y-6 text-gray-300">
 
-        function openModal(imageUrl, title) {
-            const modal = document.createElement('div');
-            modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50';
-            modal.onclick = (e) => {
-                if (e.target === modal) closeModal(modal);
-            };
+<section>
+<h3 class="text-2xl font-semibold text-white mb-3">What Is This?</h3>
+<p>This is a personal wallpaper collection gallery that automatically scrapes and curates beautiful wallpapers daily. It serves as both a practical tool for discovering stunning imagery and a demonstration of modern web automation practices.</p>
+</section>
 
-            modal.innerHTML = `
-                <div class="relative max-w-4xl max-h-[90vh] w-full h-full flex flex-col">
-                    <button 
-                        onclick="closeModal(this.closest('.fixed'))"
-                        class="absolute -top-10 -right-2 text-white text-3xl font-bold hover:text-gray-300 transition-colors"
-                    >
-                        ✕
-                    </button>
-                    <img 
-                        src="${imageUrl}" 
-                        alt="${title}"
-                        class="w-full h-full object-contain rounded-lg"
-                    />
-                    <div class="text-center mt-4 text-white">
-                        <h3 class="text-xl font-semibold">${title}</h3>
-                    </div>
-                </div>
-            `;
+<section>
+<h3 class="text-2xl font-semibold text-white mb-3">Why Was It Built?</h3>
+<p>This project was created as a <strong>learning experiment to explore and master GitHub Actions workflows</strong>. It demonstrates how to build fully automated systems that:</p>
+<ul class="list-disc list-inside space-y-2 ml-4">
+<li>Execute tasks on a schedule using cron triggers</li>
+<li>Fetch and process data from external APIs</li>
+<li>Automatically commit and push changes to repositories</li>
+<li>Build complete CI/CD pipelines for data management</li>
+<li>Handle complex workflows without manual intervention</li>
+</ul>
+</section>
 
-            document.body.appendChild(modal);
-        }
+<section>
+<h3 class="text-2xl font-semibold text-white mb-3">Key Features</h3>
+<div class="grid md:grid-cols-2 gap-4">
+<div class="bg-slate-800 p-4 rounded-lg">
+<p class="font-semibold text-blue-400">🤖 Automated Collection</p>
+<p class="text-sm text-gray-400 mt-2">Daily wallpapers automatically fetched and saved via GitHub Actions</p>
+</div>
+<div class="bg-slate-800 p-4 rounded-lg">
+<p class="font-semibold text-blue-400">📅 Data Pipeline</p>
+<p class="text-sm text-gray-400 mt-2">Fetching, processing, and storing data with bash and jq automation</p>
+</div>
+<div class="bg-slate-800 p-4 rounded-lg">
+<p class="font-semibold text-blue-400">🎨 Beautiful UI</p>
+<p class="text-sm text-gray-400 mt-2">Responsive gallery with modern design built with Tailwind CSS</p>
+</div>
+<div class="bg-slate-800 p-4 rounded-lg">
+<p class="font-semibold text-blue-400">⚡ Interactive Experience</p>
+<p class="text-sm text-gray-400 mt-2">Click any wallpaper to view full-size with details and lazy loading</p>
+</div>
+</div>
+</section>
 
-        function closeModal(modal) {
-            modal.remove();
-        }
+<section>
+<h3 class="text-2xl font-semibold text-white mb-3">Technologies Used</h3>
+<div class="bg-slate-800 p-6 rounded-lg">
+<p class="mb-4"><strong>Frontend:</strong> HTML5, Tailwind CSS, Vanilla JavaScript</p>
+<p class="mb-4"><strong>Automation:</strong> GitHub Actions, Bash, jq (JSON processing)</p>
+<p class="mb-4"><strong>Data Source:</strong> Bing Image Archive API</p>
+<p><strong>Version Control:</strong> Git & GitHub</p>
+</div>
+</section>
 
-        // Load wallpapers on page load
-        document.addEventListener('DOMContentLoaded', loadAndDisplayWallpapers);
-    </script>
+<section>
+<h3 class="text-2xl font-semibold text-white mb-3">How It Works</h3>
+<p>Every day at midnight UTC, a GitHub Actions workflow automatically:</p>
+<ol class="list-decimal list-inside space-y-2 ml-4">
+<li>Fetches the latest wallpaper from Bing's Image Archive API</li>
+<li>Extracts and processes metadata (title, copyright, date)</li>
+<li>Downloads the high-resolution image file</li>
+<li>Updates the JSON database with new entries</li>
+<li>Commits and pushes changes to the repository</li>
+<li>Displays the new wallpaper in this interactive gallery</li>
+</ol>
+</section>
+
+<section>
+<h3 class="text-2xl font-semibold text-white mb-3">Personal Use</h3>
+<p>This collection serves as a curated source of high-quality wallpapers for personal desktop backgrounds, all organized and easily accessible through this beautiful web interface. No subscriptions, no ads—just pure imagery in an organized collection.</p>
+</section>
+
+</div>
+</div>
+
+</div>
+
+<script src="app.js"></script>
+
 </body>
 </html>
